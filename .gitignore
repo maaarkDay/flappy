@@ -1,0 +1,28 @@
+# Zig build artifacts
+zig-cache/
+zig-out/
+.zig-cache/
+
+# Binaries and release folders
+bin/
+release/
+*.exe
+*.pdb
+*.o
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Other common files to ignore
+*.log
+*.tmp
