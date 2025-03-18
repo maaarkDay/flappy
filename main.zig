@@ -89,57 +89,67 @@ pub fn main() !void {
 }
 
 fn create_menu() !objc.Object {
-    // File, Edit, View, Window, Help
+    const SubMenuItem = struct {
+        title: ?[]const u8,
+        action: ?[]const u8,
+        shortcut: ?[]const u8,
+        is_separator: bool = false,
+    };
+    const MenuItem = struct { title: []const u8, submenu: []const SubMenuItem };
+
+    const app_menu = [_]MenuItem{
+        .{ .title = "Flappy Birds", .submenu = &[_]SubMenuItem{
+            .{ .title = "About Flappy Birds", .action = "orderFrontStandardAboutPanel:", .shortcut = null },
+            .{ .title = "Check for updates...", .action = "orderFrontStandardAboutPanel:", .shortcut = null },
+            .{ .is_separator = true, .title = null, .action = null, .shortcut = null },
+            .{ .title = "Settings", .action = "orderFrontStandardAboutPanel:", .shortcut = "," },
+            .{ .is_separator = true, .title = null, .action = null, .shortcut = null },
+            .{ .title = "Quit Flappy Birds", .action = "terminate:", .shortcut = "q" },
+        } },
+        .{ .title = "File", .submenu = &[_]SubMenuItem{} },
+        .{ .title = "Edit", .submenu = &[_]SubMenuItem{} },
+        .{ .title = "View", .submenu = &[_]SubMenuItem{} },
+        .{ .title = "Window", .submenu = &[_]SubMenuItem{} },
+        .{ .title = "Help", .submenu = &[_]SubMenuItem{} },
+    };
+
     const menu = try objc.create_obj("NSMenu");
-    const sub_menu = try objc.create_obj("NSMenu");
-    const sub_menu_item = try objc.create_obj("NSMenuItem");
 
-    _ = sub_menu_item.msgSend(void, objc.sel("setSubmenu:"), .{sub_menu.value});
-    _ = menu.msgSend(void, objc.sel("addItem:"), .{sub_menu_item.value});
+    for (app_menu) |item| {
+        const menu_item = try objc.create_obj("NSMenuItem");
+        const menu_title = try objc.create_string(item.title);
+        _ = menu_item.msgSend(void, objc.sel("setTitle:"), .{menu_title.value});
 
-    const about_item = try create_menu_item("About Flappy Birds", "orderFrontStandardAboutPanel:", null);
-    const updates_item = try create_menu_item("Check for updates...", "orderFrontStandardAboutPanel:", null);
-    const separator_1_item = try create_menu_separator();
-    const separator_2_item = try create_menu_separator();
-    const settings_item = try create_menu_item("Settings", "orderFrontStandardAboutPanel:", ",");
-    const quit_item = try create_menu_item("Quit Flappy Birds", "terminate:", "q");
+        const submenu = try objc.create_obj("NSMenu");
+        const submenu_title = try objc.create_string(item.title);
+        _ = submenu.msgSend(void, objc.sel("setTitle:"), .{submenu_title.value});
 
-    _ = sub_menu.msgSend(void, objc.sel("addItem:"), .{about_item.value});
-    _ = sub_menu.msgSend(void, objc.sel("addItem:"), .{updates_item.value});
-    _ = sub_menu.msgSend(void, objc.sel("addItem:"), .{separator_1_item.value});
-    _ = sub_menu.msgSend(void, objc.sel("addItem:"), .{settings_item.value});
-    _ = sub_menu.msgSend(void, objc.sel("addItem:"), .{separator_2_item.value});
-    _ = sub_menu.msgSend(void, objc.sel("addItem:"), .{quit_item.value});
+        for (item.submenu) |sub_item| {
+            if (sub_item.is_separator) {
+                const separator = try create_menu_separator();
+                _ = submenu.msgSend(void, objc.sel("addItem:"), .{separator.value});
+                continue;
+            }
 
-    const main_menu_items = [_][*:0]const u8{ "File", "Edit", "View", "Window", "Help" };
+            const submenu_item = try objc.create_obj("NSMenuItem");
+            const submenu_item_title = try objc.create_string(sub_item.title.?);
+            _ = submenu_item.msgSend(void, objc.sel("setTitle:"), .{submenu_item_title.value});
 
-    for (main_menu_items) |title| {
-        const new_menu = try objc.create_obj("NSMenu");
-        const new_menu_item = try objc.create_obj("NSMenuItem");
-        const new_menu_title = try objc.create_string(title);
+            if (sub_item.action) |action| {
+                _ = submenu_item.msgSend(void, objc.sel("setAction:"), .{objc.sel(action)});
+            }
 
-        _ = new_menu_item.msgSend(void, objc.sel("setTitle:"), .{new_menu_title.value});
-        _ = new_menu_item.msgSend(void, objc.sel("setSubmenu:"), .{new_menu.value});
-        _ = menu.msgSend(void, objc.sel("addItem:"), .{new_menu_item.value});
+            if (sub_item.shortcut) |key| {
+                const shortcut_str = try objc.create_string(key);
+                _ = submenu_item.msgSend(void, objc.sel("setKeyEquivalent:"), .{shortcut_str.value});
+            }
+
+            _ = submenu.msgSend(void, objc.sel("addItem:"), .{submenu_item.value});
+        }
+        _ = menu_item.msgSend(void, objc.sel("setSubmenu:"), .{submenu.value});
+        _ = menu.msgSend(void, objc.sel("addItem:"), .{menu_item.value});
     }
-
     return menu;
-}
-
-fn create_menu_item(title: [*:0]const u8, action: [*:0]const u8, key: ?[*:0]const u8) !objc.Object {
-    const title_obj = try objc.create_string(title);
-    const item = try objc.create_obj("NSMenuItem");
-
-    if (key) |k| {
-        const key_obj = try objc.create_string(k);
-
-        _ = item.msgSend(void, objc.sel("setKeyEquivalent:"), .{key_obj.value});
-    }
-
-    _ = item.msgSend(void, objc.sel("setTitle:"), .{title_obj.value});
-    _ = item.msgSend(void, objc.sel("setAction:"), .{objc.sel(action)});
-
-    return item;
 }
 
 fn create_menu_separator() !objc.Object {

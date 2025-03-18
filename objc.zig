@@ -25,8 +25,15 @@ pub extern "c" fn objc_msgSend_stret() void;
 pub extern "c" fn class_getName(cls: Class) [*:0]const u8;
 
 // Helper func to create selectors
-pub fn sel(name: [*:0]const u8) SEL {
-    return sel_registerName(name);
+pub fn sel(name: []const u8) SEL {
+    var buffer = std.heap.c_allocator.alloc(u8, name.len + 1) catch @panic("Failed to allocate memory for selector");
+    defer std.heap.c_allocator.free(buffer);
+
+    std.mem.copyForwards(u8, buffer[0..name.len], name);
+    buffer[name.len] = 0;
+    const null_term_ptr: [*:0]const u8 = @ptrCast(buffer.ptr);
+
+    return sel_registerName(null_term_ptr);
 }
 
 // Helper func to get a class by name
@@ -184,8 +191,15 @@ pub fn create_obj(class_name: [*:0]const u8) !Object {
     return Object.init(instance);
 }
 
-pub fn create_string(str: [*:0]const u8) !Object {
+pub fn create_string(str: []const u8) !Object {
+    var buffer = try std.heap.c_allocator.alloc(u8, str.len + 1);
+    defer std.heap.c_allocator.free(buffer);
+
+    std.mem.copyForwards(u8, buffer[0..str.len], str);
+    buffer[str.len] = 0;
+
     const NSString = try wrap_class("NSString");
-    const nsstring = NSString.msgSend(id, sel("stringWithUTF8String:"), .{str});
+    const nsstring = NSString.msgSend(id, sel("stringWithUTF8String:"), .{buffer.ptr});
+
     return Object.init(nsstring);
 }
