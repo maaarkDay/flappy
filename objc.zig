@@ -1,13 +1,20 @@
 const std = @import("std");
 
 // Import C types
-const c_bool = std.c.bool;
+const c_bool = bool;
 // Basic Objective-C types
 pub const SEL = *opaque {};
+// A pointer to a function that uses the C calling convention. 
+// This casts our specific method to this type.
+pub const IMP = *const fn() callconv(.C) void;
 pub const Class = *opaque {};
-pub const IMP = *opaque {};
 pub const id = *opaque {};
 pub const BOOL = c_bool;
+// Basic macOS types
+const CGFloat = f64; // 64-bit floating number
+const NSInteger = c_long; // 64-bit signed integer
+const NSUInteger = c_ulong; // 64-bit unsigned integer
+pub const NSRect = extern struct { x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat };
 
 // External function declarations for Objective-C runtime
 // pub - Makes this func publicly accessible
@@ -23,6 +30,10 @@ pub extern "c" fn objc_msgSend() void;
 // Used for methods that return larger structures by value
 pub extern "c" fn objc_msgSend_stret() void;
 pub extern "c" fn class_getName(cls: Class) [*:0]const u8;
+pub extern "c" fn class_addMethod(cls: Class, name: SEL, imp: IMP, type: [*:0]const u8) BOOL; 
+// Ability to create a Class from an Objective_C runtime class and register it
+pub extern "c" fn objc_allocateClassPair(parent: Class, name: [*:0]const u8, extrabytes: usize)?Class;
+pub extern "c" fn objc_registerClassPair(cls: Class)void;
 
 // Helper func to create selectors
 pub fn sel(name: []const u8) SEL {

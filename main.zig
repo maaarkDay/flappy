@@ -1,13 +1,6 @@
 const std = @import("std");
 const objc = @import("objc.zig");
-
-// Basic macOS types
-const CGFloat = f64; // 64-bit floating number
-const NSInteger = c_long; // 64-bit signed integer
-const NSUInteger = c_ulong; // 64-bit unsigned integer
-
-// NSRect structure for window fram
-const NSRect = extern struct { x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat };
+const view = @import("view.zig");
 
 // Window style constraints
 const NSWindowStyleMaskTitled = 1 << 0;
@@ -44,7 +37,7 @@ pub fn main() !void {
     const window_obj = objc.Object.init(window_alloc);
 
     // Init window with frame and style
-    const frame = NSRect{
+    const frame = objc.NSRect{
         .x = 0,
         .y = 0,
         .width = 800,
@@ -76,6 +69,18 @@ pub fn main() !void {
 
     // Center window on screen
     _ = styled_window.msgSend(void, objc.sel("center"), .{});
+
+    // Get view
+    const content_view = styled_window.msgSend(objc.id, objc.sel("contentView"), .{});
+    const content_view_obj = objc.Object.init(content_view);
+    const bounds = content_view_obj.msgSend(*anyopaque, objc.sel("bounds"), .{});
+    const bounds_struct = @as(*const objc.NSRect, @ptrCast(&bounds)).*;
+    const game_view_obj = view.create_game_view(bounds_struct) catch {
+        std.debug.print("Failed to create game view\n", .{});
+        return error.GameViewCreationFailed;
+    };
+
+    _ = styled_window.msgSend(void, objc.sel("setContentView:"), .{game_view_obj.value});
 
     // Show window
     _ = styled_window.msgSend(void, objc.sel("makeKeyAndOrderFront:"), .{@as(?objc.id, null)});
@@ -126,7 +131,9 @@ fn create_menu() !objc.Object {
 
         for (item.submenu) |sub_item| {
             if (sub_item.is_separator) {
-                const separator = try create_menu_separator();
+                const NSMenuItem_class = try objc.wrap_class("NSMenuItem");
+                const NSMenuItem_obj = NSMenuItem_class.msgSend(objc.id, objc.sel("separatorItem"), .{});
+                const separator = objc.Object.init(NSMenuItem_obj);
                 _ = submenu.msgSend(void, objc.sel("addItem:"), .{separator.value});
                 continue;
             }
@@ -150,11 +157,4 @@ fn create_menu() !objc.Object {
         _ = menu.msgSend(void, objc.sel("addItem:"), .{menu_item.value});
     }
     return menu;
-}
-
-fn create_menu_separator() !objc.Object {
-    const NSMenuItem = try objc.wrap_class("NSMenuItem");
-    const separator = NSMenuItem.msgSend(objc.id, objc.sel("separatorItem"), .{});
-
-    return objc.Object.init(separator);
 }
