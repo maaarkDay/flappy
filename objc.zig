@@ -62,7 +62,6 @@ pub const Object = struct {
     // For sending messages to objects
     pub fn msgSend(self: Object, comptime ReturnType: type, sel_name: SEL, args: anytype) ReturnType {
         // This is a simplified implementation - we will need more type handling
-
         const ArgsType = @TypeOf(args);
         const args_info = @typeInfo(ArgsType);
         const args_len = args_info.@"struct".fields.len;

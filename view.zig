@@ -11,27 +11,30 @@ const Pipe = struct {
     y: f32 = 0,
 };
 
-const State = struct {
-    y: f32 = 300,
-    velocity: f32 = 0,
-    pipes: []*Pipe = &[_]*Pipe{},
-    score: u32 = 0,
-    game_over: bool = false
-};
+const State = struct { y: f32 = 300, velocity: f32 = 0, pipes: []*Pipe = &[_]*Pipe{}, score: u32 = 0, game_over: bool = false };
 
 var GameState = State{};
 
 fn drawRect_impl(self: objc.id, _: objc.SEL, rect_ptr: objc.id) callconv(.C) void {
     // wraps the raw self pointer into an Object for easier method calling
     const NSView_obj = objc.Object.init(self);
+    //     const bounds_struct = objc.NSRect{
+    //         .x = 0,
+    //         .y = 0,
+    //         .width = 800,
+    //         .height = 600,
+    //     };
     // call bounds method on view to get dimensions
     // returns a generic pointer (anyopaque) that will be the NSRect struct
-    const bounds = NSView_obj.msgSend(*anyopaque, objc.sel("bounds"), .{});
+    const bounds = NSView_obj.msgSend(objc.NSRect, objc.sel("bounds"), .{});
     const bounds_struct = @as(*const objc.NSRect, @ptrCast(&bounds)).*;
-    
+
+    std.log.debug("bounds_struct: {any}", .{bounds_struct});
+
     draw_background(self, bounds_struct);
     //draw_bird(self);
 
+    std.log.debug("drawRect_imp ran: {&}", .{self});
     _ = rect_ptr;
 }
 
@@ -42,14 +45,14 @@ pub fn create_game_view(frame: objc.NSRect) !objc.Object {
         const NSView_class = objc.get_class("NSView") orelse return error.ClassNotFound;
 
         class = objc.objc_allocateClassPair(NSView_class, "GameView", 0) orelse return error.ClassCreationFailed;
-        // v = void return type 
+        // v = void return type
         // @ = first param is an object(self),
-        // : = second param is a selector 
+        // : = second param is a selector
         // @ = third param is an object
         const added = objc.class_addMethod(class.?, objc.sel("drawRect:"), @ptrCast(&drawRect_impl), "v@:@");
 
         if (!added) return error.MethodAdditionFailed;
-        
+
         objc.objc_registerClassPair(class.?);
     }
 
@@ -63,6 +66,7 @@ pub fn create_game_view(frame: objc.NSRect) !objc.Object {
 }
 
 fn draw_background(self: objc.id, bounds: objc.NSRect) void {
+    std.log.debug("Bounds: {any}", .{bounds});
     const NSGraphicsContext_class = objc.get_class("NSGraphicsContext") orelse return;
     const NSGraphicsContext_obj = objc.ClassType.init(NSGraphicsContext_class);
     const context = NSGraphicsContext_obj.msgSend(objc.id, objc.sel("currentContext"), .{});
@@ -76,9 +80,8 @@ fn draw_background(self: objc.id, bounds: objc.NSRect) void {
     //});
     const sky_color = NSColor_obj.msgSend(objc.id, objc.sel("blueColor"), .{});
     const sky_color_obj = objc.Object.init(sky_color);
-   
-    _ = sky_color_obj.msgSend(void, objc.sel("set"), .{});
 
+    _ = sky_color_obj.msgSend(void, objc.sel("set"), .{});
 
     const NSBezierPath_class = objc.get_class("NSBezierPath") orelse return;
     const NSBezierPath_obj = objc.ClassType.init(NSBezierPath_class);
@@ -86,5 +89,5 @@ fn draw_background(self: objc.id, bounds: objc.NSRect) void {
     const bg_path = objc.Object.init(bg_rect);
 
     _ = bg_path.msgSend(void, objc.sel("fill"), .{});
-    _  = self;
+    _ = self;
 }
